@@ -1,0 +1,123 @@
+plugins {
+    id "com.github.hierynomus.license" version "0.11.0"
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'maven'
+apply plugin: "jacoco"
+apply plugin: "com.github.hierynomus.license"
+
+group 'io.macgyver.reactor.aws'
+version = "1.0.0"
+configurations {
+	all*.exclude group: 'log4j'
+	all*.exclude group: 'xml-apis'
+    all*.exclude group: 'commons-logging'
+}
+
+repositories {
+   mavenLocal()
+   mavenCentral()
+	jcenter()
+   
+
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+
+	compile 'io.projectreactor:reactor-bus:2.0.7.RELEASE'
+    compile 'com.amazonaws:aws-java-sdk:1.10.69'
+    compile 'com.amazonaws:amazon-kinesis-client:1.6.2'
+	compile 'io.reactivex:rxjava-reactive-streams:1.0.1'
+	compile "org.slf4j:jcl-over-slf4j:1.7.21"
+	 
+	testCompile 'org.assertj:assertj-core:3.4.1'
+	testCompile "junit:junit:4.12"
+    testCompile 'ch.qos.logback:logback-classic:1.1.7'
+
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.12'
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+	
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+	
+	
+}
+
+artifacts {
+        archives sourcesJar, javadocJar
+}
+uploadArchives {
+    repositories {
+        mavenDeployer {
+			
+            name = 'macgyver-bintray'
+            if (!project.hasProperty('bintrayUser')) {
+                project.ext['bintrayUser']=""
+            }
+            if (!project.hasProperty('bintrayKey')) {
+                project.ext['bintrayKey']=""
+            }
+			
+			beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+			
+            repository(id: 'macgyver-bintray', url: 'https://api.bintray.com/maven/robschoening/io-macgyver/rx-aws'){
+                authentication(userName: bintrayUser, password: bintrayKey)
+			}
+            pom.project {
+				
+				name 'rx-aws'
+				description 'Reactive Extensions for AWS'
+				url 'https://github.com/LendingClub/NeoRx'
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+						distribution 'repo'
+                    }
+                }
+				scm {
+					connection 'scm:git:git@github.com:LendingClub/rx-aws.git'
+					developerConnection 'scm:git:git@github.com:LendingClub/rx-aws.git'
+					url 'git@github.com:LendingClub/rx-aws.git'
+				}
+            	developers {
+					developer {
+						name 'Rob Schoening'
+						email 'robschoening@gmail.com'
+					}
+				}
+            }
+        }
+    }
+}
+
+
+
+jacocoTestReport {
+    group = "reporting"
+    description = "Generate Jacoco coverage reports after running tests."
+    reports {
+        xml.enabled true
+        html.enabled true
+        csv.enabled false
+    }
+    //classDirectories = fileTree(dir: 'build/classes/main', include: 'com/thc/**')
+    //sourceDirectories = fileTree(dir: 'scr/java', include: 'com/thc/**')
+    additionalSourceDirs = files(sourceSets.main.allJava.srcDirs)
+}
+
+
