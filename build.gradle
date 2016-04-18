@@ -8,8 +8,8 @@ apply plugin: 'maven'
 apply plugin: "jacoco"
 apply plugin: "com.github.hierynomus.license"
 
-group 'io.macgyver.reactor.aws'
-version = "1.0.0"
+group 'io.macgyver.rx-aws'
+version = "1.0.1"
 configurations {
 	all*.exclude group: 'log4j'
 	all*.exclude group: 'xml-apis'
