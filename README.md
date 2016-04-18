@@ -148,7 +148,7 @@ bus.on(
 );
 ```
 
-The following table describes some selectors that apply to Kinesis and SQS:
+The following table describes some generic Selectors that are independent of AWS:
 
 |  Selector | Description |
 |-----------|-------------|
@@ -164,7 +164,8 @@ And there are several Selectors that apply only to SQS:
 | SQSMessageSelectors.anySQSMessage() | Selects any SQSMessage event |
 | SQSMessageSelectors.queueName(String name) | Matches the queue name via URL |
 
-Like SQS, theree selectors that are unique to Kinesis:
+
+And a number that are speicific to Kinesis:
 
 | Selector | Description |
 |----------| ----------- |
