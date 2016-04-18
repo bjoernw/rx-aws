@@ -66,16 +66,16 @@ uploadArchives {
         mavenDeployer {
 			
             name = 'macgyver-bintray'
-            if (!project.hasProperty('bintrayUser')) {
-                project.ext['bintrayUser']=""
-            }
-            if (!project.hasProperty('bintrayKey')) {
-                project.ext['bintrayKey']=""
-            }
+			if (!project.has('BINRAY_USER')) {
+				project.ext['BINTRAY_USER']=System.getenv("BINTRAY_USER")
+			}
+			if (!project.has('BINTRAY_KEY')) {
+				project.ext['BINTRAY_KEY'] = System.getenv("BINTRAY_KEY")
+			}
 			
 
             repository(id: 'macgyver-bintray', url: 'https://api.bintray.com/maven/robschoening/io-macgyver/rx-aws'){
-                authentication(userName: bintrayUser, password: bintrayKey)
+                authentication(userName: BINTRAY_USER, password: BINTRAY_KEY)
 			}
             pom.project {
 				
