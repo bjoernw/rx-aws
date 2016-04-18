@@ -1,5 +1,7 @@
 # rx-aws
 
+[![Circle CI](https://circleci.com/gh/LendingClub/rx-aws/tree/master.svg?style=svg)](https://circleci.com/gh/LendingClub/rx-aws/tree/master)
+
 This project contains reactive stream bindings for AWS services including Kinesis and AWS.  
 
 It consumes SQS Queues and Kinesis Streams and publishes them onto
