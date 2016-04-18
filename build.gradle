@@ -30,7 +30,8 @@ targetCompatibility = 1.8
 dependencies {
 
 	compile 'io.projectreactor:reactor-bus:2.0.7.RELEASE'
-    compile 'com.amazonaws:aws-java-sdk:1.10.69'
+    compile 'com.amazonaws:aws-java-sdk-kinesis:1.10.69'
+    compile 'com.amazonaws:aws-java-sdk-sqs:1.10.69'
     compile 'com.amazonaws:amazon-kinesis-client:1.6.2'
 	compile 'io.reactivex:rxjava-reactive-streams:1.0.1'
 	compile "org.slf4j:jcl-over-slf4j:1.7.21"
@@ -72,8 +73,7 @@ uploadArchives {
                 project.ext['bintrayKey']=""
             }
 			
-			beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-			
+
             repository(id: 'macgyver-bintray', url: 'https://api.bintray.com/maven/robschoening/io-macgyver/rx-aws'){
                 authentication(userName: bintrayUser, password: bintrayKey)
 			}
