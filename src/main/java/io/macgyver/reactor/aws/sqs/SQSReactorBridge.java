@@ -60,6 +60,8 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 
 	protected String arn;
 
+	Thread daemonThread;
+	
 	public class SQSMessage {
 
 		Message message;
@@ -396,7 +398,17 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 	public boolean isRunning() {
 		return running.get();
 	}
-
+	public void stop() {
+		logger.info("stopping {}. Waiting for thread to die.",this);
+		running.set(false);
+		try {
+			daemonThread.join();
+			logger.info("stopped {}",this);
+		}
+		catch (InterruptedException e) {
+			logger.warn("",e);
+		}
+	}
 	public SQSReactorBridge start() {
 		boolean oldValue = running.getAndSet(true);
 		if (oldValue) {
@@ -438,9 +450,9 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			}
 
 		};
-		Thread t = new Thread(r);
-		t.setDaemon(true);
-		t.start();
+		daemonThread = new Thread(r);
+		daemonThread.setDaemon(true);
+		daemonThread.start();
 
 		return this;
 	}
