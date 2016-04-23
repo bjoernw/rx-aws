@@ -1,7 +1,7 @@
 # rx-aws
 
 [![Circle CI](https://circleci.com/gh/LendingClub/rx-aws/tree/master.svg?style=svg)](https://circleci.com/gh/LendingClub/rx-aws/tree/master)
-
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.macgyver.rx-aws/rx-aws/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.macgyver.rx-aws/rx-aws)
 This project contains reactive stream bindings for AWS services including Kinesis and SQS.  
 
 It consumes SQS Queues and Kinesis Streams and publishes them onto

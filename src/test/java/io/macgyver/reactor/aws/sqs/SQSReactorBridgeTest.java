@@ -13,6 +13,9 @@
  */
 package io.macgyver.reactor.aws.sqs;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
@@ -20,7 +23,9 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.services.sqs.AmazonSQSAsyncClient;
 
 import reactor.Environment;
+import reactor.bus.Event;
 import reactor.bus.EventBus;
+import reactor.bus.selector.Selectors;
 
 public class SQSReactorBridgeTest {
 
@@ -72,4 +77,6 @@ public class SQSReactorBridgeTest {
 		Assertions.assertThat(bridge.isAutoDeleteEnabled()).isTrue();
 
 	}
+	
+
 }
