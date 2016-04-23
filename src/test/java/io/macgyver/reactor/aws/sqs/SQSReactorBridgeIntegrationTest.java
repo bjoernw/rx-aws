@@ -27,7 +27,7 @@ import io.macgyver.reactor.aws.sqs.SQSReactorBridge.SQSMessage;
 import reactor.bus.Event;
 import reactor.bus.selector.Selectors;
 
-public class SQSReactorBridgeIntegrationTest extends SQSIntegrationTest {
+public class SQSReactorBridgeIntegrationTest extends AbstractSQSIntegrationTest {
 
 	@Test
 	public void testIt() throws InterruptedException{
