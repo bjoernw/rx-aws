@@ -31,23 +31,23 @@ public class SQSReactorBridgeTest {
 
 		try {
 			new SQSReactorBridge.Builder().build();
-			Assertions.failBecauseExceptionWasNotThrown(IllegalStateException.class);
+			Assertions.failBecauseExceptionWasNotThrown(IllegalArgumentException.class);
 		} catch (Exception e) {
-			Assertions.assertThat(e).isInstanceOf(IllegalStateException.class);
+			Assertions.assertThat(e).isInstanceOf(IllegalArgumentException.class);
 		}
 
 		try {
 			new SQSReactorBridge.Builder().withEventBus(bus).build();
-			Assertions.failBecauseExceptionWasNotThrown(IllegalStateException.class);
+			Assertions.failBecauseExceptionWasNotThrown(IllegalArgumentException.class);
 		} catch (Exception e) {
-			Assertions.assertThat(e).isInstanceOf(IllegalStateException.class);
+			Assertions.assertThat(e).isInstanceOf(IllegalArgumentException.class);
 		}
 
 		try {
-			new SQSReactorBridge.Builder().withUrl("https://www.yahoo.com").build();
-			Assertions.failBecauseExceptionWasNotThrown(IllegalStateException.class);
+			new SQSReactorBridge.Builder().withUrl("https://example.com").build();
+			Assertions.failBecauseExceptionWasNotThrown(IllegalArgumentException.class);
 		} catch (Exception e) {
-			Assertions.assertThat(e).isInstanceOf(IllegalStateException.class);
+			Assertions.assertThat(e).isInstanceOf(IllegalArgumentException.class);
 		}
 	}
 
