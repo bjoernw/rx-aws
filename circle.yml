@@ -13,11 +13,12 @@ general:
         
 test:
     override:
-        - ./gradlew clean check 
+        - ./gradlew clean check jacoco
     post:
         - mkdir -p $CIRCLE_TEST_REPORTS/junit/
         - find . -type f -regex ".*/build/test-results/.*.xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/ \;
         - mv build/reports/tests $CIRCLE_ARTIFACTS/test-reports
+        - mv build/reports/jacoco/test/html $CIRCLE_ARTIFACTS/test-coverage
         
         
 deployment:
