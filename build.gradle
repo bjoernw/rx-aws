@@ -56,7 +56,12 @@ task javadocJar(type: Jar, dependsOn: javadoc) {
     classifier = 'javadoc'
     from javadoc.destinationDir
 }
-
+test {
+    testLogging {
+        events "failed"
+        exceptionFormat "short"
+    }
+}
 artifacts {
     archives sourcesJar, javadocJar
 }
