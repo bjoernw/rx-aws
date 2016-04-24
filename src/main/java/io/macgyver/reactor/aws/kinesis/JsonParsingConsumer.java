@@ -47,7 +47,7 @@ public class JsonParsingConsumer implements Consumer<Event<KinesisReactorBridge.
 
 		} catch (IOException | RuntimeException e) {
 			if (logger.isDebugEnabled()) {
-				logger.warn("could not parse json", e);
+				logger.debug("could not parse json", e);
 			} else {
 				logger.warn("could not parse json: " + e.getMessage());
 			}

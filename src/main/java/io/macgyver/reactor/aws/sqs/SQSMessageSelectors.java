@@ -3,7 +3,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,9 +12,6 @@
  * limitations under the License.
  */
 package io.macgyver.reactor.aws.sqs;
-
-import com.amazonaws.services.sqs.model.Message;
-import com.fasterxml.jackson.databind.JsonNode;
 
 import io.macgyver.reactor.aws.sqs.SQSReactorBridge.SQSMessage;
 import reactor.bus.selector.Selector;
@@ -44,12 +41,11 @@ public class SQSMessageSelectors {
 
 	public static Selector queueName(String name) {
 		return Selectors.predicate(it -> {
-			if (it instanceof SQSMessage ) {
-				return ((SQSMessage) it).getUrl().endsWith("/"+name);
+			if (it instanceof SQSMessage) {
+				return ((SQSMessage) it).getUrl().endsWith("/" + name);
 			}
-			
-		
-		return false;
+
+			return false;
 		});
 	}
 }

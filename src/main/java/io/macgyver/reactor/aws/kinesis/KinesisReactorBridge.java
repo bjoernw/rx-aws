@@ -3,7 +3,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,15 +13,12 @@
  */
 package io.macgyver.reactor.aws.kinesis;
 
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.nio.ByteBuffer;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -34,7 +31,6 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
 import com.amazonaws.services.kinesis.clientlibrary.exceptions.InvalidStateException;
 import com.amazonaws.services.kinesis.clientlibrary.exceptions.ShutdownException;
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer;
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor;
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
@@ -43,12 +39,15 @@ import com.amazonaws.services.kinesis.clientlibrary.types.InitializationInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownInput;
 import com.amazonaws.services.kinesis.model.Record;
+import com.fasterxml.jackson.databind.util.ByteBufferBackedInputStream;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 
 import io.macgyver.reactor.aws.AbstractReactorBridge;
 import reactor.bus.Event;
-import reactor.bus.Event.Headers;
 import reactor.bus.EventBus;
 import reactor.bus.selector.Selector;
 import reactor.bus.selector.Selectors;
@@ -58,20 +57,26 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 	static Logger logger = LoggerFactory.getLogger(KinesisReactorBridge.class);
 	KinesisClientLibConfiguration kinesisConfig;
 
-	DateTimeFormatter arrivalFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.of("UTC"));
-
 	Worker worker;
 
 	AmazonKinesisAsyncClient asyncKinesisClient;
-	String arn;
 
 	AtomicInteger bridgeThreadNum = new AtomicInteger(0);
 
-	AtomicLong lastCheckpoint = new AtomicLong(0);
+	boolean parseJson = false;
 
-	long checkpointIntervalMillis = TimeUnit.SECONDS.toMillis(30);
+	CheckpointStrategy checkpointStrategy = new TimeIntervalCheckpointStrategy();
 
-	boolean parseJson = true;
+	Supplier<String> streamArnSupplier = Suppliers.memoize(new StreamArnSupplier());
+
+	public class StreamArnSupplier implements Supplier<String> {
+
+		@Override
+		public String get() {
+			return getKinesisClient().describeStream(getStreamName()).getStreamDescription().getStreamARN();
+		}
+
+	}
 
 	public class KinesisRecord {
 
@@ -91,6 +96,33 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 
 		public KinesisReactorBridge getBridge() {
 			return KinesisReactorBridge.this;
+		}
+
+		public String getSequenceNumber() {
+			return getRecord().getSequenceNumber();
+		}
+
+		public InputStream getPayloadAsInputStream() {
+			return new ByteBufferBackedInputStream(getRecord().getData().duplicate());
+		}
+
+		public byte[] getPayloadAsByteArray() {
+			return toByteArray(getRecord().getData().duplicate());
+		}
+
+		public String getPayloadAsString() {
+			return new String(getPayloadAsByteArray());
+		}
+	}
+
+	private static byte[] toByteArray(ByteBuffer bb) {
+
+		if (bb.hasArray()) {
+			return bb.array();
+		} else {
+			byte[] bytes = new byte[bb.remaining()];
+			bb.get(bytes);
+			return bytes;
 		}
 	}
 
@@ -112,29 +144,32 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 				KinesisRecord kr = new KinesisRecord();
 				kr.record = record;
 				Event<KinesisRecord> event = Event.wrap(kr);
-				String sequenceNumber = record.getSequenceNumber();
-				String partitionKey = record.getPartitionKey();
 
-				String approximateArrivalTime = arrivalFormatter
-						.format(record.getApproximateArrivalTimestamp().toInstant());
-
-				Headers headers = event.getHeaders();
-
-				event.getHeaders().set("sequenceNumber", sequenceNumber);
-				event.getHeaders().set("partitionKey", partitionKey);
-				event.getHeaders().set("approximateArrivalTimestamp", approximateArrivalTime);
-				event.getHeaders().set("streamName", kinesisConfig.getStreamName());
-				headers.set("bridgeId", getId());
 				getEventBus().notify(kr, event);
+
+				boolean cp = checkpointStrategy.call(record);
+
+				if (cp) {
+					try {
+
+						if (logger.isDebugEnabled()) {
+							logger.debug("checkpointing app {} for stream {} at {}", kinesisConfig.getApplicationName(),
+									kinesisConfig.getStreamName(), record.getSequenceNumber());
+						}
+						processRecordsInput.getCheckpointer().checkpoint(record);
+
+					} catch (RuntimeException | InvalidStateException | ShutdownException e) {
+						logger.error("problem with checkpoint", e);
+					}
+				}
 
 			});
 
-			conditionalCheckpoint(processRecordsInput.getCheckpointer(), processRecordsInput);
 		}
 
 		@Override
 		public void shutdown(ShutdownInput shutdownInput) {
-			// TODO Auto-generated method stub
+			logger.info("shutdown {}", shutdownInput);
 
 		}
 
@@ -152,7 +187,8 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 		AWSCredentialsProvider credentialsProvider;
 		Consumer<KinesisClientLibConfiguration> extraConfig;
 		String workerId;
-		long checkpointIntervalMillis = TimeUnit.SECONDS.toMillis(30);
+
+		CheckpointStrategy checkpointStrategy;
 
 		public Builder withStreamName(String streamName) {
 			this.streamName = streamName;
@@ -192,13 +228,8 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 			return this;
 		}
 
-		public Builder withStreamArn(String arn) {
-			this.arn = arn;
-			return this;
-		}
-
-		public Builder withCheckpointInterval(int v, TimeUnit unit) {
-			this.checkpointIntervalMillis = unit.toMillis(v);
+		public Builder withCheckpointStrategy(CheckpointStrategy strategy) {
+			this.checkpointStrategy = strategy;
 			return this;
 		}
 
@@ -225,6 +256,7 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 						workerId = "127.0.0.1:" + bridge.getId();
 					}
 				}
+				Preconditions.checkArgument(appName != null, "appName must be set");
 				kinesisConfig = new KinesisClientLibConfiguration(appName, streamName, credentialsProvider,
 						workerId);
 				if (regionName != null) {
@@ -234,19 +266,22 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 
 			bridge.kinesisConfig = kinesisConfig;
 
+			if (checkpointStrategy != null) {
+				bridge.checkpointStrategy = checkpointStrategy;
+			}
+
 			if (extraConfig != null) {
 				extraConfig.accept(bridge.kinesisConfig);
 			}
 			bridge.eventBus = eventBus;
 
-			bridge.arn = arn;
 			AmazonKinesisAsyncClient asyncClient = new AmazonKinesisAsyncClient(
 					kinesisConfig.getKinesisCredentialsProvider());
 
 			if (kinesisConfig.getRegionName() != null) {
 				asyncClient.setRegion(Region.getRegion(Regions.fromName(kinesisConfig.getRegionName())));
 			}
-
+			bridge.asyncKinesisClient = asyncClient;
 			if (bridge.parseJson) {
 				JsonParsingConsumer.apply(bridge);
 			}
@@ -256,15 +291,14 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 			logger.info("streamName: {}", kinesisConfig.getStreamName());
 			logger.info("regionName: {}", kinesisConfig.getRegionName());
 			logger.info("workerId  : {}", kinesisConfig.getWorkerIdentifier());
-			logger.info("streamArn : {}", bridge.arn);
+			logger.info("streamArn : {}", bridge.getStreamArn());
 
 			logger.info("created {} ... don't forget to call start()", bridge);
 			return bridge;
 		}
 	}
 
-	
-	public void start() {
+	public KinesisReactorBridge start() {
 		logger.info("starting {}...", this);
 		IRecordProcessorFactory factory = new IRecordProcessorFactory() {
 
@@ -287,6 +321,7 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 		t.setName("kinesis-bridge-" + bridgeThreadNum.getAndIncrement());
 		t.start();
 
+		return this;
 	}
 
 	protected KinesisReactorBridge() {
@@ -297,11 +332,20 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 		return getStreamArn();
 	}
 
-	public String getStreamArn() {
-		if (arn == null) {
-			throw new IllegalStateException("withStreamArn() must have been set");
+	public String getStreamName() {
+		if (kinesisConfig == null) {
+			return null;
 		}
-		return arn;
+		return kinesisConfig.getStreamName();
+	}
+
+	public KinesisClientLibConfiguration getKinesisClientLibConfiguration() {
+		return kinesisConfig;
+	}
+
+	public String getStreamArn() {
+		return streamArnSupplier.get();
+
 	}
 
 	public Selector eventsFromBridgeSelector() {
@@ -313,28 +357,15 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 		});
 	}
 
-	public AmazonKinesisAsyncClient getKinesisAsyncClient() {
+	public AmazonKinesisAsyncClient getKinesisClient() {
 		return asyncKinesisClient;
 	}
 
-	protected void conditionalCheckpoint(IRecordProcessorCheckpointer checkpointer, ProcessRecordsInput input) {
-		try {
-			long millisSinceLastCheckpoint = Instant.now().toEpochMilli() - lastCheckpoint.get();
-			if (millisSinceLastCheckpoint > checkpointIntervalMillis) {
-
-				if (!input.getRecords().isEmpty()) {
-					Record r = input.getRecords().get(input.getRecords().size() - 1);
-					logger.info("checkpointing app {} for stream {} at {}", kinesisConfig.getApplicationName(),
-							kinesisConfig.getStreamName(), r.getSequenceNumber());
-					checkpointer.checkpoint(input.getRecords().get(input.getRecords().size() - 1));
-				}
-				lastCheckpoint.set(Instant.now().toEpochMilli());
-			}
-
-		} catch (InvalidStateException | ShutdownException e) {
-			logger.warn("problem checkpointing", e);
-		}
+	public void stop() {
+		worker.shutdown();
 	}
 
-
+	public String toString() {
+		return MoreObjects.toStringHelper(this).add("streamName", getStreamName()).toString();
+	}
 }

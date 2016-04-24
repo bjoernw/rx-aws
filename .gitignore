@@ -4,4 +4,5 @@
 bin/
 build/
 .gradle
+test-stream.properties
 

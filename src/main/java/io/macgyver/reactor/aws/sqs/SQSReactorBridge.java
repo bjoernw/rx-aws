@@ -398,6 +398,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 	public boolean isRunning() {
 		return running.get();
 	}
+
 	public void stop() {
 		logger.info("stopping {}. Waiting for thread to die.",this);
 		running.set(false);
