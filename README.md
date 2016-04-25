@@ -66,12 +66,29 @@ bus.on(SQSMessageSelectors.anySQSMessage(),event -> {
 });
 ```
 
+## SNS via SQS
+
+SNS messages are commonly delivered over an SQS queue.  The SQSReactorBridge has special processing for this.  When building the bridge, just call
+```withSNSSupport(true)```:
+
+```java
+new SQSReactorBridge.Builder()
+  .withUrl("https://sqs.us-east-1.amazonaws.com/111122223333/myqueue")
+  .withEventBus(bus)
+  .withSNSSupport(true)   // << enable SNS support
+  .build()
+  .start();
+```
+
+This will cause SNS messages to be parsed and re-emitted as ```Event<SNSMessage>```.
+## SQS  JSON Support
+
+The easiest way to process JSON payloads is to call ```SQSMessage.getBodyAsJson()```.  If the message cannot be parsed, it will be returned as a Jackson 
+```MissingNode```.
 
 
-### JSON Support
-
-Processing JSON messages is very common.  We have added special JSON support that parses incoming messages into a Jackson tree model and re-publishes
-the resulting JsonNode structure.
+Alternately, there is JSON support in SQSReactorBridge that parses incoming messages into a Jackson tree model and re-publishes
+the resulting JsonNode structure as ```Event<JsonNode>```.
 
 All you have to do is add:
 
@@ -93,8 +110,7 @@ bus.on(Selectors.type(JsonNode.class),(Event<JsonNode> p)->{
 });
 ```
 
-Alternately, you can use a reactive stream operator to do the translation during consumption.  However, in many cases there is benefit in parsing once and making 
-the JSON tree structure available to consumers.
+Alternately, you can use a reactive stream operator to do the translation during consumption.  
 
 # Kinesis
 
