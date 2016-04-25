@@ -87,7 +87,7 @@ uploadArchives {
                 name 'rx-aws'
                 description 'Reactive Extensions for AWS'
                 packaging 'jar'
-                url 'https://github.com/LendingClub/NeoRx'
+                url 'https://github.com/LendingClub/rx-aws'
                 licenses {
                     license {
                         name 'The Apache Software License, Version 2.0'
