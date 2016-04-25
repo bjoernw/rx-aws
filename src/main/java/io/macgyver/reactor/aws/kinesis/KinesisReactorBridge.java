@@ -13,6 +13,7 @@
  */
 package io.macgyver.reactor.aws.kinesis;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -39,6 +40,9 @@ import com.amazonaws.services.kinesis.clientlibrary.types.InitializationInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownInput;
 import com.amazonaws.services.kinesis.model.Record;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.util.ByteBufferBackedInputStream;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -68,7 +72,9 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 	CheckpointStrategy checkpointStrategy = new TimeIntervalCheckpointStrategy();
 
 	Supplier<String> streamArnSupplier = Suppliers.memoize(new StreamArnSupplier());
-
+	
+	ObjectMapper mapper = new ObjectMapper();
+	
 	public class StreamArnSupplier implements Supplier<String> {
 
 		@Override
@@ -80,8 +86,12 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 
 	public class KinesisRecord {
 
+		
+		
 		Record record;
 
+		JsonNode jsonBody = null;
+		
 		public Record getRecord() {
 			return record;
 		}
@@ -102,16 +112,29 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
 			return getRecord().getSequenceNumber();
 		}
 
-		public InputStream getPayloadAsInputStream() {
+		public InputStream getBodyAsInputStream() {
 			return new ByteBufferBackedInputStream(getRecord().getData().duplicate());
 		}
 
-		public byte[] getPayloadAsByteArray() {
+		public byte[] getBodyAsByteArray() {
 			return toByteArray(getRecord().getData().duplicate());
 		}
 
-		public String getPayloadAsString() {
-			return new String(getPayloadAsByteArray());
+		public String getBodyAsString() {
+			return new String(getBodyAsByteArray());
+		}
+		public synchronized JsonNode getBodyAsJson() {
+			if (jsonBody==null) {
+				try {
+				jsonBody = mapper.readTree(getBodyAsByteArray());
+				}
+				catch (IOException e) {
+					jsonBody = MissingNode.getInstance();
+					logger.warn("could not parse json body: "+e.toString());
+				}
+			}
+			
+			return jsonBody;
 		}
 	}
 

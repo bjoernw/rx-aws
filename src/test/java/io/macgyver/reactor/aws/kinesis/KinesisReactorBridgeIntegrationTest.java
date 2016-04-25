@@ -54,7 +54,7 @@ public class KinesisReactorBridgeIntegrationTest extends AbstractKinesisIntegrat
 
 			try {
 				
-				String s = x.getData().getPayloadAsString();
+				String s = x.getData().getBodyAsString();
 				
 				logger.info("Received: {}",s);
 				if (s.equals(message)) {
@@ -86,7 +86,7 @@ public class KinesisReactorBridgeIntegrationTest extends AbstractKinesisIntegrat
 		Assertions.assertThat(kr.getBridge()).isSameAs(bridge);
 		Assertions.assertThat(bridge.getArn()).startsWith("arn:aws:kinesis:");
 		Assertions.assertThat(kr.getStreamArn()).isEqualTo(bridge.getStreamArn());
-		Assertions.assertThat(kr.getPayloadAsString()).startsWith("Hello");
+		Assertions.assertThat(kr.getBodyAsString()).startsWith("Hello");
 		
 		Record r = kr.getRecord();
 		Assertions.assertThat(r.getSequenceNumber()).isNotNull();

@@ -31,6 +31,7 @@ dependencies {
     compile "com.amazonaws:aws-java-sdk-sqs:${AWS_SDK_VERSION}"
     compile "com.amazonaws:aws-java-sdk-dynamodb:${AWS_SDK_VERSION}"
     compile "com.amazonaws:aws-java-sdk-cloudwatch:${AWS_SDK_VERSION}"
+    compile "com.amazonaws:aws-java-sdk-sns:${AWS_SDK_VERSION}"
     compile "com.amazonaws:aws-java-sdk-kms:${AWS_SDK_VERSION}"
     compile "com.amazonaws:amazon-kinesis-client:${AWS_KINESIS_CLIENT_VERSION}"
     compile 'io.reactivex:rxjava:1.1.3'

@@ -52,14 +52,19 @@ public class SQSJsonParsingConsumer implements Consumer<Event<SQSMessage>> {
 	protected Optional<Event<JsonNode>> transform(Event<SQSMessage> em) {
 		try {
 
-			JsonNode n = m.readTree(em.getData().getMessage().getBody());
+			
+			JsonNode n = em.getData().getBodyAsJson();
+			
+			if (n.isMissingNode()) {
+				return Optional.empty();
+			}
 
 			Event<JsonNode> event = Event.wrap(n);
 
 			EventUtil.copyEventHeaders(em, event);
 			return Optional.of(event);
 
-		} catch (IOException | RuntimeException e) {
+		} catch ( RuntimeException e) {
 
 			if (logger.isDebugEnabled()) {
 				logger.debug("failed to parse payload", e);

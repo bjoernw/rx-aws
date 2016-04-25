@@ -13,6 +13,7 @@
  */
 package io.macgyver.reactor.aws.sqs;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -32,9 +33,16 @@ import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQSAsyncClient;
+import com.amazonaws.services.sqs.model.GetQueueAttributesRequest;
+import com.amazonaws.services.sqs.model.GetQueueAttributesResult;
 import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.QueueAttributeName;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.MissingNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -44,6 +52,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import io.macgyver.reactor.aws.AbstractReactorBridge;
+import io.macgyver.reactor.aws.sns.SNSAdapter;
+import io.macgyver.reactor.aws.sns.SNSSelectors;
 import reactor.bus.Event;
 import reactor.bus.EventBus;
 import reactor.bus.selector.Selector;
@@ -58,14 +68,16 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 
 	protected AtomicBoolean running = new AtomicBoolean(false);
 
-	protected String arn;
-
+	static ObjectMapper mapper = new ObjectMapper();
+	
 	Thread daemonThread;
 	
 	public class SQSMessage {
 
 		Message message;
 
+		JsonNode jsonBody;
+		
 		public SQSMessage(Message m) {
 			this.message = m;
 
@@ -78,7 +90,22 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 		public Message getMessage() {
 			return message;
 		}
-
+		
+		public String getBodyAsString() {
+			return getMessage().getBody();
+		}
+		public synchronized JsonNode getBodyAsJson() {
+			if (jsonBody==null) {
+				try {
+					jsonBody = SQSReactorBridge.mapper.readTree(getBodyAsString());
+				}
+				catch (IOException | RuntimeException e) {
+					logger.warn("problem parsing json body: "+e.toString());
+					jsonBody = MissingNode.getInstance();
+				}
+			}
+			return jsonBody;
+		}
 		public String getUrl() {
 			String url = message.getAttributes().get("url");
 			return url;
@@ -94,9 +121,10 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 		// TODO Auto-generated constructor stub
 	}
 
-	public String getArn() {
-		return arn;
+	public String getQueueArn() {
+		return arnSupplier.get();
 	}
+
 
 	void dispatch(Message m) {
 
@@ -106,13 +134,13 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 		} else {
 
 			if (logger.isDebugEnabled()) {
-				logger.debug("dispatching on {}: {} for {}", eventBus, m);
+				logger.debug("dispatching on {}: {}", eventBus, m);
 			}
 			SQSMessage sm = new SQSMessage(m);
 
 			Event<SQSMessage> em = Event.wrap(sm);
 
-			String arn = getArn();
+			String arn = getQueueArn();
 			if (arn != null) {
 				m.getAttributes().put("arn", arn);
 			}
@@ -152,7 +180,8 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 	ScheduledExecutorService scheduledExecutorService;
 
 	Supplier<String> urlSupplier = new SQSUrlSupplier(null);
-
+	Supplier<String> arnSupplier = null;
+	
 	public String getUrl() {
 		return urlSupplier.get();
 	}
@@ -173,6 +202,25 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 		return autoDeleteEnabled;
 	}
 
+	public static class SQSArnSupplier implements Supplier<String> {
+		
+		Supplier<String> urlSupplier;
+		AmazonSQSAsyncClient client;
+		public SQSArnSupplier(AmazonSQSAsyncClient client, Supplier<String> urlSupplier) {
+			this.urlSupplier = urlSupplier;
+			this.client = client;
+		}
+		@Override
+		public String get() {
+			GetQueueAttributesRequest request = new GetQueueAttributesRequest();
+			request.setQueueUrl(urlSupplier.get());
+			request.setAttributeNames(ImmutableList.of("QueueArn"));
+			
+			GetQueueAttributesResult result = client.getQueueAttributes(request);
+			
+			return result.getAttributes().get("QueueArn");
+		}
+	}
 	public static class SQSUrlSupplier implements Supplier<String> {
 
 		String queueUrl;
@@ -217,11 +265,16 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 		String arn;
 		boolean jsonParsing = false;
 		Region region;
-
+		boolean sns=false;
+		
 		public Builder withRegion(Regions region) {
 			return withRegion(Region.getRegion(region));
 		}
 
+		public Builder withSNSSupport(boolean b) {
+			this.sns = b;
+			return this;
+		}
 		public Builder withRegion(Region region) {
 			this.region = region;
 			return this;
@@ -256,10 +309,6 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			return this;
 		}
 
-		public Builder withArn(String arn) {
-			this.arn = arn;
-			return this;
-		}
 
 		public Builder withQueueName(String queueName) {
 			this.queueName = queueName;
@@ -277,33 +326,16 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			return this;
 		}
 
-		/**
-		 * This should work for now. It is sketchy though. Going through a
-		 * reverse
-		 * proxy will cause it to fail.
-		 * 
-		 * @param url
-		 * @return
-		 */
-		protected String urlToArn(String url) {
 
-			if (url != null) {
-				Matcher m = urlToArnPattern.matcher(url);
-				if (m.matches()) {
-					String arn = "arn:aws:sqs:" + m.group(1) + ":" + m.group(2) + ":" + m.group(3);
-
-					return arn;
-				}
-			}
-			logger.info("could not derive arn from URL: {}", url);
-			return null;
-		}
 
 		public SQSReactorBridge build() {
 			SQSReactorBridge c = new SQSReactorBridge();
 			Preconditions.checkArgument(eventBus != null, "EventBus not set");
 
 			c.eventBus = eventBus;
+			if (sns) {
+				SNSAdapter.applySNSAdapter(c.eventBus);
+			}
 			if (client != null) {
 				c.client = client;
 			} else {
@@ -331,16 +363,8 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			if (jsonParsing) {
 				SQSJsonParsingConsumer.apply(c);
 			}
-			if (arn != null) {
-				c.arn = arn;
-			} else {
-				try {
-					String url = c.getUrl();
-					c.arn = urlToArn(url);
-				} catch (RuntimeException e) {
-					logger.info("could not obtain queue url", e);
-				}
-			}
+			c.arnSupplier = Suppliers.memoize(new SQSArnSupplier(c.client, c.urlSupplier));
+			
 			logger.info("constructed {}. Don't forget to call start()", c);
 			return c;
 		}
