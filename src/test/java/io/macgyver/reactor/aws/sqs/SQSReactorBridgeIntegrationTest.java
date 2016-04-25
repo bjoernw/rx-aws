@@ -38,6 +38,7 @@ public class SQSReactorBridgeIntegrationTest extends AbstractSQSIntegrationTest 
 		SQSReactorBridge b = new SQSReactorBridge.Builder().withSQSClient(getSQSClient()).withEventBus(getEventBus())
 				.withUrl(getQueueUrl()).build().start();
 
+		Assertions.assertThat(b.getQueueArn()).startsWith("arn:aws:sqs:");
 		CountDownLatch latch = new CountDownLatch(3);
 		List<Event<SQSMessage>> list = Lists.newCopyOnWriteArrayList();
 		
