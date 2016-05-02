@@ -167,8 +167,8 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 		if (isAutoDeleteEnabled()) {
 			if (logger.isDebugEnabled()) {
 				logger.debug("deleting message: {}", m.getReceiptHandle());
-				client.deleteMessageAsync(getUrl(), m.getReceiptHandle());
 			}
+			client.deleteMessageAsync(getUrl(), m.getReceiptHandle());
 		}
 	}
 
