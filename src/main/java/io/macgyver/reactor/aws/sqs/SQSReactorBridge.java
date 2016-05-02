@@ -125,9 +125,14 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 	int waitTimeSeconds;
 	boolean autoDeleteEnabled = true;
 	ScheduledExecutorService scheduledExecutorService;
-
+	int maxBatchSize=1;
+	
 	Supplier<String> urlSupplier = new SQSUrlSupplier(null);
 	Supplier<String> arnSupplier = null;
+	
+	public int getMaxBatchSize() {
+		return maxBatchSize;
+	}
 	
 	public String getQueueUrl() {
 		return urlSupplier.get();
@@ -210,7 +215,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 		ScheduledExecutorService executor;
 		String queueName;
 		String arn;
-
+		int maxBatchSize=1;
 		Region region;
 		boolean sns=false;
 		
@@ -231,6 +236,10 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			return withRegion(Regions.fromName(region));
 		}
 
+		public Builder withMaxBatchSize(int s) {
+			this.maxBatchSize=s;
+			return this;
+		}
 		public Builder withEventBus(EventBus eventBus) {
 			this.eventBus = eventBus;
 			return this;
@@ -304,7 +313,8 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			}
 			c.scheduledExecutorService = executor != null ? executor : globalExecutor;
 
-		
+			c.maxBatchSize = maxBatchSize;
+			
 			c.arnSupplier = Suppliers.memoize(new SQSArnSupplier(c.client, c.urlSupplier));
 			
 			logger.info("constructed {}. Don't forget to call start()", c);
@@ -398,6 +408,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 						request.setQueueUrl(getQueueUrl());
 						request.setAttributeNames(ImmutableList.of("ALL"));
 						request.setWaitTimeSeconds(waitTimeSeconds);
+						request.setMaxNumberOfMessages(maxBatchSize);
 						Future<ReceiveMessageResult> result = client.receiveMessageAsync(request, new Handler());
 
 						result.get(); // go ahead and block
