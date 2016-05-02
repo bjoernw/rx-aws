@@ -18,7 +18,7 @@ import org.reactivestreams.Publisher;
 import com.amazonaws.services.sqs.model.Message;
 import com.fasterxml.jackson.databind.JsonNode;
 
-import io.macgyver.reactor.aws.sqs.SQSReactorBridge.SQSMessage;
+
 import io.macgyver.reactor.aws.util.RxJson;
 import reactor.bus.Event;
 import rx.Observable;

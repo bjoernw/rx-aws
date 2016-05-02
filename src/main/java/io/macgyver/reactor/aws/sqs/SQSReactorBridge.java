@@ -21,6 +21,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -72,50 +73,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 	
 	Thread daemonThread;
 	
-	public class SQSMessage {
 
-		Message message;
-
-		JsonNode jsonBody;
-		
-		public SQSMessage(Message m) {
-			this.message = m;
-
-		}
-
-		public SQSReactorBridge getBridge() {
-			return SQSReactorBridge.this;
-		}
-
-		public Message getMessage() {
-			return message;
-		}
-		
-		public String getBodyAsString() {
-			return getMessage().getBody();
-		}
-		public synchronized JsonNode getBodyAsJson() {
-			if (jsonBody==null) {
-				try {
-					jsonBody = SQSReactorBridge.mapper.readTree(getBodyAsString());
-				}
-				catch (IOException | RuntimeException e) {
-					logger.warn("problem parsing json body: "+e.toString());
-					jsonBody = MissingNode.getInstance();
-				}
-			}
-			return jsonBody;
-		}
-		public String getUrl() {
-			String url = message.getAttributes().get("url");
-			return url;
-		}
-
-		public String getArn() {
-			String arn = message.getAttributes().get("arn");
-			return arn;
-		}
-	}
 
 	protected SQSReactorBridge() {
 		// TODO Auto-generated constructor stub
@@ -136,20 +94,12 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			if (logger.isDebugEnabled()) {
 				logger.debug("dispatching on {}: {}", eventBus, m);
 			}
-			SQSMessage sm = new SQSMessage(m);
+			SQSMessage sm = new SQSMessage(this,m);
 
 			Event<SQSMessage> em = Event.wrap(sm);
 
-			String arn = getQueueArn();
-			if (arn != null) {
-				m.getAttributes().put("arn", arn);
-			}
-			m.getAttributes().put("url", getUrl());
-			m.getAttributes().put("bridgeId", getId());
-
-			m.getAttributes().forEach((k, v) -> {
-				em.getHeaders().set(k, v);
-			});
+			
+			
 
 			eventBus.notify(sm, em);
 
@@ -168,7 +118,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			if (logger.isDebugEnabled()) {
 				logger.debug("deleting message: {}", m.getReceiptHandle());
 			}
-			client.deleteMessageAsync(getUrl(), m.getReceiptHandle());
+			client.deleteMessageAsync(getQueueUrl(), m.getReceiptHandle());
 		}
 	}
 
@@ -182,7 +132,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 	Supplier<String> urlSupplier = new SQSUrlSupplier(null);
 	Supplier<String> arnSupplier = null;
 	
-	public String getUrl() {
+	public String getQueueUrl() {
 		return urlSupplier.get();
 	}
 
@@ -263,7 +213,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 		ScheduledExecutorService executor;
 		String queueName;
 		String arn;
-		boolean jsonParsing = false;
+
 		Region region;
 		boolean sns=false;
 		
@@ -289,10 +239,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			return this;
 		}
 
-		public Builder withJsonParsing(boolean b) {
-			this.jsonParsing = b;
-			return this;
-		}
+
 
 		public Builder withScheduledExecutorService(ScheduledExecutorService s) {
 			this.executor = s;
@@ -360,9 +307,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			}
 			c.scheduledExecutorService = executor != null ? executor : globalExecutor;
 
-			if (jsonParsing) {
-				SQSJsonParsingConsumer.apply(c);
-			}
+		
 			c.arnSupplier = Suppliers.memoize(new SQSArnSupplier(c.client, c.urlSupplier));
 			
 			logger.info("constructed {}. Don't forget to call start()", c);
@@ -402,16 +347,21 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 			try {
 				List<Message> list = result.getMessages();
 
-				logger.debug("received {} messages from {}", (list != null) ? list.size() : 0, getUrl());
+				logger.debug("received {} messages from {}", (list != null) ? list.size() : 0, getQueueUrl());
 				SQSReactorBridge.this.failureCount.set(0);
 
-				result.getMessages().forEach(m -> {
+				if (list==null || list.isEmpty()) {
+					return;
+				}
+				
+				for (Message message: list) {
+			
 					try {
-						SQSReactorBridge.this.dispatch(m);
+						dispatch(message);
 					} catch (Exception e) {
-						logger.error("could not dispatch event to reactor EventBus: {}", m);
+						logger.error("could not dispatch event to reactor EventBus: {}", message);
 					}
-				});
+				}
 			} finally {
 
 			}
@@ -448,7 +398,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 				while (isRunning()) {
 					try {
 						ReceiveMessageRequest request = new ReceiveMessageRequest();
-						request.setQueueUrl(getUrl());
+						request.setQueueUrl(getQueueUrl());
 						request.setAttributeNames(ImmutableList.of("ALL"));
 						request.setWaitTimeSeconds(waitTimeSeconds);
 						Future<ReceiveMessageResult> result = client.receiveMessageAsync(request, new Handler());
@@ -485,7 +435,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 	public String toString() {
 		String url=null;
 		try {
-			url = getUrl();
+			url = getQueueUrl();
 		}
 		catch (RuntimeException e) {
 			// swallow it...this is toString()

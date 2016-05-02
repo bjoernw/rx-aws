@@ -20,7 +20,6 @@ import org.junit.Test;
 
 import com.amazonaws.services.sqs.model.Message;
 
-import io.macgyver.reactor.aws.sqs.SQSReactorBridge.SQSMessage;
 import reactor.Environment;
 import reactor.bus.Event;
 import reactor.bus.EventBus;
@@ -38,14 +37,13 @@ public class SQSMessageTest {
 		SQSReactorBridge bridge = new SQSReactorBridge.Builder().withUrl("https://api.example.com").withEventBus(b)
 				.build();
 
-		SQSReactorBridge.SQSMessage msg = bridge.new SQSMessage(m);
+		SQSMessage msg = new SQSMessage(bridge,m);
 
 		Assertions.assertThat(msg.getMessage()).isSameAs(m);
 		Assertions.assertThat(msg.getArn()).isEqualTo("arn:foo:bar");
 		Assertions.assertThat(msg.getUrl()).isEqualTo("https://api.example.com");
 
-		SQSJsonParsingConsumer x = new SQSJsonParsingConsumer();
-
+	
 		Event<SQSMessage> em = Event.wrap(msg);
 
 		Assertions.assertThat(em.getData()).isNotNull();

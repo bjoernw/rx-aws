@@ -18,7 +18,6 @@ import org.junit.Test;
 
 import com.amazonaws.services.sqs.model.Message;
 
-import io.macgyver.reactor.aws.sqs.SQSReactorBridge.SQSMessage;
 import reactor.bus.selector.Selector;
 import reactor.bus.selector.Selectors;
 
@@ -41,7 +40,7 @@ public class SQSMessageSelectorsTest {
 		Message m = new Message();
 		SQSReactorBridge b = new SQSReactorBridge();
 		
-		SQSMessage sqsMessage = b.new SQSMessage(m);
+		SQSMessage sqsMessage = new SQSMessage(b,m);
 		
 		Assertions.assertThat(s.matches(sqsMessage)).isFalse();
 		

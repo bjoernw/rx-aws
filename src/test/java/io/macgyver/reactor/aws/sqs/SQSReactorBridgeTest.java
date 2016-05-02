@@ -20,8 +20,11 @@ import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQSAsyncClient;
 
+import io.macgyver.reactor.aws.sns.SNSMessage;
 import reactor.Environment;
 import reactor.bus.Event;
 import reactor.bus.EventBus;
@@ -64,7 +67,7 @@ public class SQSReactorBridgeTest {
 		Assertions.assertThat(bridge).isNotNull();
 		Assertions.assertThat(bridge.getFailureCount().get()).isEqualTo(0);
 		Assertions.assertThat(bridge.getEventBus()).isSameAs(bus);
-		Assertions.assertThat(bridge.getUrl()).isEqualTo("https://api.example.com");
+		Assertions.assertThat(bridge.getQueueUrl()).isEqualTo("https://api.example.com");
 		Assertions.assertThat(bridge.getAsyncClient()).isNotNull();
 		Assertions.assertThat(bridge.waitTimeSeconds).isEqualTo(10);
 

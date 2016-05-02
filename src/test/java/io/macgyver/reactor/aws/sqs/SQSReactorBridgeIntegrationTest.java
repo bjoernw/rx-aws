@@ -23,7 +23,7 @@ import org.junit.Test;
 import com.amazonaws.services.sqs.model.Message;
 import com.google.common.collect.Lists;
 
-import io.macgyver.reactor.aws.sqs.SQSReactorBridge.SQSMessage;
+
 import reactor.bus.Event;
 import reactor.bus.selector.Selectors;
 
@@ -53,12 +53,9 @@ public class SQSReactorBridgeIntegrationTest extends AbstractSQSIntegrationTest 
 		getSQSClient().sendMessage(getQueueUrl(), "test2");
 		getSQSClient().sendMessage(getQueueUrl(), "test3");
 		Assertions.assertThat(latch.await(20,TimeUnit.SECONDS)).isTrue();
-		logger.info("received all");
+		logger.info("received all: {}",list.size());
 		list.forEach(evt->{
-			Assertions.assertThat(evt.getHeaders().get("arn").toString()).startsWith("arn:aws:sqs:");
-			Assertions.assertThat(evt.getHeaders().get("bridgeId").toString()).isEqualTo(b.getId());
-			Assertions.assertThat(evt.getHeaders().get("url").toString()).isEqualTo(getQueueUrl());
-			
+	
 			SQSMessage msg = evt.getData();
 			Assertions.assertThat(msg).isNotNull();
 			Assertions.assertThat(msg.getUrl()).isEqualTo(evt.getHeaders().get("url"));
@@ -67,7 +64,8 @@ public class SQSReactorBridgeIntegrationTest extends AbstractSQSIntegrationTest 
 			
 			Message sm = msg.getMessage();
 			
-			Assertions.assertThat(sm.getAttributes()).containsEntry("url", msg.getUrl()).containsEntry("arn", msg.getArn()).containsEntry("bridgeId", b.getId());
+			Assertions.assertThat(sm).isNotNull();
+			Assertions.assertThat(sm.getAttributes()).hasSize(0);
 			
 			
 			

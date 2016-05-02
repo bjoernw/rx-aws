@@ -81,36 +81,6 @@ new SQSReactorBridge.Builder()
 ```
 
 This will cause SNS messages to be parsed and re-emitted as ```Event<SNSMessage>```.
-## SQS  JSON Support
-
-The easiest way to process JSON payloads is to call ```SQSMessage.getBodyAsJson()```.  If the message cannot be parsed, it will be returned as a Jackson 
-```MissingNode```.
-
-
-Alternately, there is JSON support in SQSReactorBridge that parses incoming messages into a Jackson tree model and re-publishes
-the resulting JsonNode structure as ```Event<JsonNode>```.
-
-All you have to do is add:
-
-```java
-new SQSReactorBridge.Builder()
-  .withUrl("https://sqs.us-east-1.amazonaws.com/111122223333/myqueue")
-  .withEventBus(bus)
-  .withJsonParsing(true)   // <<< EASY
-  .build()
-  .start();
-```
-
-You can then subscribe to the JsonNode payloads directly:
-
-```java
-bus.on(Selectors.type(JsonNode.class),(Event<JsonNode> p)->{
-  JsonNode data = p.getData();
-  System.out.println(data);
-});
-```
-
-Alternately, you can use a reactive stream operator to do the translation during consumption.  
 
 # Kinesis
 

@@ -13,7 +13,6 @@
  */
 package io.macgyver.reactor.aws.sqs;
 
-import io.macgyver.reactor.aws.sqs.SQSReactorBridge.SQSMessage;
 import reactor.bus.selector.Selector;
 import reactor.bus.selector.Selectors;
 
