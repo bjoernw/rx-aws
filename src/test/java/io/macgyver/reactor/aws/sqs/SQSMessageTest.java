@@ -31,8 +31,7 @@ public class SQSMessageTest {
 	@Test
 	public void testIt() throws InterruptedException {
 		Message m = new Message();
-		m.getAttributes().put("arn", "arn:foo:bar");
-		m.getAttributes().put("url", "https://api.example.com");
+		
 		EventBus b = EventBus.create(Environment.initializeIfEmpty());
 		SQSReactorBridge bridge = new SQSReactorBridge.Builder().withUrl("https://api.example.com").withEventBus(b)
 				.build();
@@ -40,9 +39,7 @@ public class SQSMessageTest {
 		SQSMessage msg = new SQSMessage(bridge,m);
 
 		Assertions.assertThat(msg.getMessage()).isSameAs(m);
-		Assertions.assertThat(msg.getArn()).isEqualTo("arn:foo:bar");
-		Assertions.assertThat(msg.getUrl()).isEqualTo("https://api.example.com");
-
+	
 	
 		Event<SQSMessage> em = Event.wrap(msg);
 

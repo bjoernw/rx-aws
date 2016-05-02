@@ -98,9 +98,6 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 
 			Event<SQSMessage> em = Event.wrap(sm);
 
-			
-			
-
 			eventBus.notify(sm, em);
 
 			deleteMessageIfNecessary(em);
@@ -281,7 +278,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 
 			c.eventBus = eventBus;
 			if (sns) {
-				SNSAdapter.applySNSAdapter(c.eventBus);
+				SNSAdapter.applySNSAdapter(c,c.eventBus);
 			}
 			if (client != null) {
 				c.client = client;

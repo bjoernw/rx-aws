@@ -58,9 +58,9 @@ public class SQSReactorBridgeIntegrationTest extends AbstractSQSIntegrationTest 
 	
 			SQSMessage msg = evt.getData();
 			Assertions.assertThat(msg).isNotNull();
-			Assertions.assertThat(msg.getUrl()).isEqualTo(evt.getHeaders().get("url"));
+			Assertions.assertThat(msg.getUrl()).isEqualTo(b.getQueueUrl());
 			Assertions.assertThat(msg.getBridge()).isSameAs(b);
-			Assertions.assertThat(msg.getArn()).isEqualTo(evt.getHeaders().get("arn"));
+			Assertions.assertThat(msg.getArn()).isEqualTo(b.getQueueArn());
 			
 			Message sm = msg.getMessage();
 			

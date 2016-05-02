@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.macgyver.reactor.aws.sqs.SQSMessage;
+import io.macgyver.reactor.aws.sqs.SQSReactorBridge;
 import io.macgyver.reactor.aws.util.MoreSelectors;
 import reactor.bus.Event;
 import reactor.bus.EventBus;
@@ -53,14 +54,18 @@ public class SNSAdapter implements Consumer<Event<SQSMessage>> {
 			logger.warn("could not parse message: " + e.toString());
 		}
 	}
-	public static void applySNSAdapter(EventBus bus) {
+	public static void applySNSAdapter(SQSReactorBridge bridge, EventBus bus) {
 		Selector selector = MoreSelectors.typedPredicate((SQSMessage m) -> {
 			try {
+				
+				if (m.getBridge()!=bridge) {
+					return false;
+				}
 				String s = m.getMessage().getBody();
 				JsonNode n = mapper.readTree(s);
 
 				boolean b = n.path("Type").asText().equals("Notification");
-				System.out.println("Notify: "+b);
+				
 				return b;
 			} catch (IOException e) {
 				logger.warn("could not parse message: " + e.toString());
