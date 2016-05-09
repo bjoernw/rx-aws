@@ -106,7 +106,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
     private boolean autoDeleteEnabled = true;
     private ScheduledExecutorService scheduledExecutorService;
     private int maxBatchSize = 1;
-    private int visibilityTimeout = 0;
+    private int visibilityTimeout = 30;
 
     private Supplier<String> urlSupplier = new SQSUrlSupplier(null);
     private Supplier<String> arnSupplier = null;
@@ -227,6 +227,12 @@ public class SQSReactorBridge extends AbstractReactorBridge {
             return this;
         }
 
+        /**
+         * The time in seconds that the client has to remove the message after the ReceiveMessageRequest before SQS
+         * makes the item visible again in the queue. (default: 30 seconds)
+         * @param timeout
+         * @return
+         */
         public Builder withVisibilityTimeout(int timeout) {
             this.visibilityTimeout = timeout;
             return this;
@@ -309,12 +315,9 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         }
     }
 
-    protected long calculateRescheduleDelayForException(Exception e) {
-        long rescheduleDelay = Math.min(60000, 1000 * failureCount.get() * 3);
-
+    protected long calculateRescheduleDelay() {
         // we may want to dial things back depending on the error
-        return rescheduleDelay;
-
+        return Math.min(60000, 1000 * failureCount.get() * 3);
     }
 
     private class Handler implements AsyncHandler<ReceiveMessageRequest, ReceiveMessageResult> {
@@ -396,7 +399,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
                     failureCount.incrementAndGet();
                 }
                 try {
-                    long rescheduleDelay = Math.min(60000, 1000 * failureCount.get() * 3);
+                    long rescheduleDelay = calculateRescheduleDelay();
                     if (rescheduleDelay > 0) {
                         logger.info("pausing for {}ms due to errors", rescheduleDelay);
                         Thread.sleep(rescheduleDelay);
