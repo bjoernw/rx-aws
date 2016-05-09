@@ -106,12 +106,17 @@ public class SQSReactorBridge extends AbstractReactorBridge {
     private boolean autoDeleteEnabled = true;
     private ScheduledExecutorService scheduledExecutorService;
     private int maxBatchSize = 1;
+    private int visibilityTimeout = 0;
 
     private Supplier<String> urlSupplier = new SQSUrlSupplier(null);
     private Supplier<String> arnSupplier = null;
 
     public int getMaxBatchSize() {
         return maxBatchSize;
+    }
+
+    public int getVisibilityTimeout() {
+        return visibilityTimeout;
     }
 
     public String getQueueUrl() {
@@ -195,6 +200,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         private String queueName;
         private String arn;
         private int maxBatchSize = 1;
+        private int visibilityTimeout = 0;
         private Region region;
         private boolean sns = false;
 
@@ -218,6 +224,11 @@ public class SQSReactorBridge extends AbstractReactorBridge {
 
         public Builder withMaxBatchSize(int s) {
             this.maxBatchSize = s;
+            return this;
+        }
+
+        public Builder withVisibilityTimeout(int timeout) {
+            this.visibilityTimeout = timeout;
             return this;
         }
 
@@ -247,7 +258,6 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         }
 
         public Builder withSQSClient(AmazonSQSAsyncClient client) {
-
             this.client = client;
             return this;
         }
@@ -290,6 +300,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
             c.scheduledExecutorService = executor != null ? executor : globalExecutor;
 
             c.maxBatchSize = maxBatchSize;
+            c.visibilityTimeout = visibilityTimeout;
 
             c.arnSupplier = Suppliers.memoize(new SQSArnSupplier(c.client, c.urlSupplier));
 
@@ -377,6 +388,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
                     request.setAttributeNames(ImmutableList.of("ALL"));
                     request.setWaitTimeSeconds(waitTimeSeconds);
                     request.setMaxNumberOfMessages(maxBatchSize);
+                    request.setVisibilityTimeout(visibilityTimeout);
                     Future<ReceiveMessageResult> result = client.receiveMessageAsync(request, new Handler());
                     result.get(); // go ahead and block
                 } catch (Exception e) {
