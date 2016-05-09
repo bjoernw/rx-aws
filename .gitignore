@@ -1,8 +1,9 @@
 .classpath
 .project
+.idea
+*.iml
 .settings
 bin/
 build/
 .gradle
 test-stream.properties
-
