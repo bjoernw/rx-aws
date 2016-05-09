@@ -62,7 +62,10 @@ public class SQSReactorBridgeTest {
 	@Test
 	public void testBuilderSuccess() {
 
-		SQSReactorBridge bridge = new SQSReactorBridge.Builder().withEventBus(bus).withUrl("https://api.example.com")
+		SQSReactorBridge bridge = new SQSReactorBridge.Builder()
+				.withRegion("us-west-1")
+				.withEventBus(bus)
+				.withUrl("https://api.example.com")
 				.build();
 		Assertions.assertThat(bridge).isNotNull();
 		Assertions.assertThat(bridge.getFailureCount().get()).isEqualTo(0);
@@ -72,7 +75,10 @@ public class SQSReactorBridgeTest {
 		Assertions.assertThat(bridge.waitTimeSeconds).isEqualTo(10);
 
 		AmazonSQSAsyncClient sqsClient = new AmazonSQSAsyncClient(new DefaultAWSCredentialsProviderChain());
-		bridge = new SQSReactorBridge.Builder().withEventBus(bus).withUrl("https://api.example.com")
+		bridge = new SQSReactorBridge.Builder()
+				.withRegion("us-west-1")
+				.withEventBus(bus)
+				.withUrl("https://api.example.com")
 				.withSQSClient(sqsClient).build();
 
 		Assertions.assertThat(bridge.getAsyncClient()).isNotNull();

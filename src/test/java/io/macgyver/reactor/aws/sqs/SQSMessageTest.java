@@ -33,7 +33,10 @@ public class SQSMessageTest {
 		Message m = new Message();
 		
 		EventBus b = EventBus.create(Environment.initializeIfEmpty());
-		SQSReactorBridge bridge = new SQSReactorBridge.Builder().withUrl("https://api.example.com").withEventBus(b)
+		SQSReactorBridge bridge = new SQSReactorBridge.Builder()
+				.withRegion("us-west-1")
+				.withUrl("https://api.example.com")
+				.withEventBus(b)
 				.build();
 
 		SQSMessage msg = new SQSMessage(bridge,m);

@@ -2,9 +2,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -195,14 +195,14 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         private AmazonSQSAsyncClient client;
         private AWSCredentialsProvider credentialsProvider;
         private EventBus eventBus;
-        private int waitTimeSeconds = SQSDefaults.waitTime;
+        private int waitTimeSeconds = SQSDefaults.WAIT_TIME;
         private ScheduledExecutorService executor;
         private String queueName;
         private String arn;
-        private int maxBatchSize = SQSDefaults.maxBatchSize;
-        private int visibilityTimeout = SQSDefaults.visibilityTimeout;
+        private int maxBatchSize = SQSDefaults.MAX_BATCH_SIZE;
+        private int visibilityTimeout = SQSDefaults.VISIBILITY_TIMEOUT;
         private Region region;
-        private boolean sns = SQSDefaults.snsSupport;
+        private boolean sns = SQSDefaults.SNS_SUPPORT;
 
         public Builder withRegion(Regions region) {
             return withRegion(Region.getRegion(region));
@@ -230,8 +230,8 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         /**
          * The time in seconds that the client has to remove the message after the ReceiveMessageRequest before SQS
          * makes the item visible again in the queue. (default: 30 seconds)
-         * @param timeout
-         * @return
+         * @param timeout visibility timeout in seconds
+         * @return Builder
          */
         public Builder withVisibilityTimeout(int timeout) {
             this.visibilityTimeout = timeout;
@@ -286,7 +286,6 @@ public class SQSReactorBridge extends AbstractReactorBridge {
             Preconditions.checkArgument(region != null, "Region not set");
 
             c.eventBus = eventBus;
-            c.client.setRegion(region);
             if (sns) {
                 SNSAdapter.applySNSAdapter(c, c.eventBus);
             }
@@ -295,6 +294,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
             } else {
                 c.client = defaultClient();
             }
+            c.client.setRegion(region);
 
             if (!Strings.isNullOrEmpty(url)) {
                 c.urlSupplier = Suppliers.memoize(new SQSUrlSupplier(url));
@@ -437,10 +437,10 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         });
     }
 
-    static class SQSDefaults {
-        static int maxBatchSize = 1;
-        static int visibilityTimeout = 30;
-        static int waitTime = 10;
-        static boolean snsSupport = false;
+    private static class SQSDefaults {
+        static final int MAX_BATCH_SIZE = 1;
+        static final int VISIBILITY_TIMEOUT = 30;
+        static final int WAIT_TIME = 10;
+        static final boolean SNS_SUPPORT = false;
     }
 }
