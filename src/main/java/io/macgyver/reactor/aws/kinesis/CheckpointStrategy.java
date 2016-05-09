@@ -18,6 +18,5 @@ import com.amazonaws.services.kinesis.model.Record;
 import rx.functions.Func1;
 
 public interface CheckpointStrategy extends Func1<Record, Boolean> {
-
-	public Boolean call(Record record);
+	Boolean call(Record record);
 }

@@ -25,18 +25,18 @@ Using the EventBus is very easy:
 EventBus bus = EventBus.create(Environment.initializeIfEmpty(), Environment.THREAD_POOL);
 ```
 
-To subscribe to all events publsihed on the bus:
+To subscribe to all events published on the bus:
 
 ```java
-bus.on(Selectors.matchAll(),e-> {
-  System.out.println("Hello, "+e.getData());
+bus.on(Selectors.matchAll(),e -> {
+  System.out.println("Hello, " + e.getData());
 });
 ````
 
 To publish an event:
 
 ```java
-bus.notify("greeting",Event.wrap("World!"));
+bus.notify("greeting", Event.wrap("World!"));
 ```
 
 Will yield the following output:
@@ -84,7 +84,7 @@ This will cause SNS messages to be parsed and re-emitted as ```Event<SNSMessage>
 
 # Kinesis
 
-The following code will start a Kinesis Consumer Libarary (KCL) worker instance that will read 
+The following code will start a Kinesis Consumer Library (KCL) worker instance that will read 
 from the stream named ```mystream``` located in the ```us-west-1``` region.  It will publish events
 onto the specified EventBus.
 
@@ -100,14 +100,14 @@ new KinesisReactorBridge.Builder()
 This can subscribed to similarly:
 
 ```java
-bus.on(Selectors.type(KinesisRecord.cass), it -> {
+bus.on(Selectors.type(KinesisRecord.class), it -> {
     System.out.println(it);
 });
 ```
 
 # Selectors and Predicates
 
-When Message objects are publshed onto the event bus, they are wrapped in an SQSMessage object.  This SQSMessage object is used as the key for the
+When Message objects are published onto the event bus, they are wrapped in an SQSMessage object.  This SQSMessage object is used as the key for the
 publish operation.
 
 This makes it possible to filter messages for subscription.  This is an example of a Lambda Predicate that matches any SQSMessage that comes from the ```test``` stream:
@@ -153,7 +153,7 @@ And there are several Selectors that apply only to SQS:
 | SQSMessageSelectors.queueName(String name) | Matches the queue name via URL |
 
 
-And a number that are speicific to Kinesis:
+And a number that are specific to Kinesis:
 
 | Selector | Description |
 |----------| ----------- |

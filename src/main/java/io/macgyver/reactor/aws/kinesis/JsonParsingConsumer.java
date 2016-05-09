@@ -29,22 +29,18 @@ import reactor.fn.Consumer;
 
 public class JsonParsingConsumer implements Consumer<Event<KinesisReactorBridge.KinesisRecord>> {
 
-	Logger logger = LoggerFactory.getLogger(JsonParsingConsumer.class);
-
-	ObjectMapper mapper = new ObjectMapper();
+	private static final Logger logger = LoggerFactory.getLogger(JsonParsingConsumer.class);
+	private ObjectMapper mapper = new ObjectMapper();
 
 	@Override
 	public void accept(Event<KinesisReactorBridge.KinesisRecord> t) {
 
 		try {
-			KinesisRecord record = (KinesisRecord) t.getData();
-
+			KinesisRecord record = t.getData();
 			JsonNode n = mapper.readTree(new ByteBufferBackedInputStream(record.getRecord().getData()));
-
 			Event<JsonNode> event = Event.wrap(n);
 			EventUtil.copyEventHeaders(t, event);
 			record.getBridge().getEventBus().notify(n, event);
-
 		} catch (IOException | RuntimeException e) {
 			if (logger.isDebugEnabled()) {
 				logger.debug("could not parse json", e);

@@ -23,10 +23,10 @@ import com.amazonaws.services.kinesis.model.Record;
 
 public class TimeIntervalCheckpointStrategy implements CheckpointStrategy {
 
+	private static final Logger logger = LoggerFactory.getLogger(TimeIntervalCheckpointStrategy.class);
 	public static final long DEFAULT_INTERVAL_MILLIS = TimeUnit.SECONDS.toMillis(30);
-	AtomicLong lastCheckpoint = new AtomicLong(0);
-	long checkpointIntervalMillis = 30000;
-	Logger logger = LoggerFactory.getLogger(TimeIntervalCheckpointStrategy.class);
+	private final AtomicLong lastCheckpoint = new AtomicLong(0);
+	private long checkpointIntervalMillis = 30000;
 
 	@Override
 	public Boolean call(Record record) {
@@ -35,10 +35,8 @@ public class TimeIntervalCheckpointStrategy implements CheckpointStrategy {
 		if (millisSinceLastCheckpoint > checkpointIntervalMillis) {
 			lastCheckpoint.set(System.currentTimeMillis());
 			return true;
-
 		}
 		return false;
-
 	}
 
 	public TimeIntervalCheckpointStrategy withCheckpointInterval(long time, TimeUnit unit) {
