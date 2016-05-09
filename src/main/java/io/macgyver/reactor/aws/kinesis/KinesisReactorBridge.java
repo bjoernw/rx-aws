@@ -195,8 +195,7 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
         private AWSCredentialsProvider credentialsProvider;
         private Consumer<KinesisClientLibConfiguration> extraConfig;
         private String workerId;
-
-        CheckpointStrategy checkpointStrategy;
+        private CheckpointStrategy checkpointStrategy;
 
         public Builder withStreamName(String streamName) {
             this.streamName = streamName;
@@ -290,7 +289,7 @@ public class KinesisReactorBridge extends AbstractReactorBridge {
                 asyncClient.setRegion(Region.getRegion(Regions.fromName(kinesisConfig.getRegionName())));
             }
             bridge.asyncKinesisClient = asyncClient;
-            if (bridge.parseJson) {
+            if (parseJson) {
                 JsonParsingConsumer.apply(bridge);
             }
 
