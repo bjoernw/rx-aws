@@ -105,8 +105,8 @@ public class SQSReactorBridge extends AbstractReactorBridge {
     int waitTimeSeconds;
     private boolean autoDeleteEnabled = true;
     private ScheduledExecutorService scheduledExecutorService;
-    private int maxBatchSize = 1;
-    private int visibilityTimeout = 30;
+    private int maxBatchSize;
+    private int visibilityTimeout;
 
     private Supplier<String> urlSupplier = new SQSUrlSupplier(null);
     private Supplier<String> arnSupplier = null;
@@ -195,14 +195,14 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         private AmazonSQSAsyncClient client;
         private AWSCredentialsProvider credentialsProvider;
         private EventBus eventBus;
-        private int waitTimeSeconds = 10;
+        private int waitTimeSeconds = SQSDefaults.waitTime;
         private ScheduledExecutorService executor;
         private String queueName;
         private String arn;
-        private int maxBatchSize = 1;
-        private int visibilityTimeout = 0;
+        private int maxBatchSize = SQSDefaults.maxBatchSize;
+        private int visibilityTimeout = SQSDefaults.visibilityTimeout;
         private Region region;
-        private boolean sns = false;
+        private boolean sns = SQSDefaults.snsSupport;
 
         public Builder withRegion(Regions region) {
             return withRegion(Region.getRegion(region));
@@ -273,29 +273,34 @@ public class SQSReactorBridge extends AbstractReactorBridge {
             return this;
         }
 
+        private AmazonSQSAsyncClient defaultClient() {
+            if (credentialsProvider == null) {
+                credentialsProvider = new DefaultAWSCredentialsProviderChain();
+            }
+            return new AmazonSQSAsyncClient(credentialsProvider);
+        }
+
         public SQSReactorBridge build() {
             SQSReactorBridge c = new SQSReactorBridge();
             Preconditions.checkArgument(eventBus != null, "EventBus not set");
+            Preconditions.checkArgument(region != null, "Region not set");
 
             c.eventBus = eventBus;
+            c.client.setRegion(region);
             if (sns) {
                 SNSAdapter.applySNSAdapter(c, c.eventBus);
             }
             if (client != null) {
                 c.client = client;
             } else {
-                if (credentialsProvider == null) {
-                    credentialsProvider = new DefaultAWSCredentialsProviderChain();
-                }
-                c.client = new AmazonSQSAsyncClient(credentialsProvider);
+                c.client = defaultClient();
             }
-            if (region != null) {
-                c.client.setRegion(region);
-            }
-            if (url != null) {
+
+            if (!Strings.isNullOrEmpty(url)) {
                 c.urlSupplier = Suppliers.memoize(new SQSUrlSupplier(url));
             } else {
-                Preconditions.checkArgument(queueName != null, "queue name must be specified if url is not specified");
+                Preconditions.checkArgument(!Strings.isNullOrEmpty(queueName),
+                        "queue name must be specified if url is not specified");
                 c.urlSupplier = Suppliers.memoize(new SQSUrlSupplier(c.client, queueName));
             }
             if (waitTimeSeconds > 0) {
@@ -304,10 +309,8 @@ public class SQSReactorBridge extends AbstractReactorBridge {
                 c.waitTimeSeconds = 0;
             }
             c.scheduledExecutorService = executor != null ? executor : globalExecutor;
-
             c.maxBatchSize = maxBatchSize;
             c.visibilityTimeout = visibilityTimeout;
-
             c.arnSupplier = Suppliers.memoize(new SQSArnSupplier(c.client, c.urlSupplier));
 
             logger.info("constructed {}. Don't forget to call start()", c);
@@ -315,7 +318,7 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         }
     }
 
-    protected long calculateRescheduleDelay() {
+    private long calculateRescheduleDelay() {
         // we may want to dial things back depending on the error
         return Math.min(60000, 1000 * failureCount.get() * 3);
     }
@@ -432,5 +435,12 @@ public class SQSReactorBridge extends AbstractReactorBridge {
             }
             return false;
         });
+    }
+
+    static class SQSDefaults {
+        static int maxBatchSize = 1;
+        static int visibilityTimeout = 30;
+        static int waitTime = 10;
+        static boolean snsSupport = false;
     }
 }
