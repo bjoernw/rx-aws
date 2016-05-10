@@ -71,19 +71,14 @@ public class SQSReactorBridge extends AbstractReactorBridge {
         return arnSupplier.get();
     }
 
-    void dispatch(Message m) {
-        if (eventBus == null) {
-            logger.warn("EventBus not set...message will be discarded");
-            deleteMessageIfNecessary(m);
-        } else {
-            if (logger.isDebugEnabled()) {
-                logger.debug("dispatching on {}: {}", eventBus, m);
-            }
-            SQSMessage sm = new SQSMessage(this, m);
-            Event<SQSMessage> em = Event.wrap(sm);
-            eventBus.notify(sm, em);
-            deleteMessageIfNecessary(em);
+    private void dispatch(Message m) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("dispatching on {}: {}", eventBus, m);
         }
+        SQSMessage sm = new SQSMessage(this, m);
+        Event<SQSMessage> em = Event.wrap(sm);
+        eventBus.notify(sm, em);
+        deleteMessageIfNecessary(em);
     }
 
     protected void deleteMessageIfNecessary(Event<SQSMessage> event) {
